@@ -1,0 +1,4 @@
+.env.example
+.vscode
+.env
+.venv
