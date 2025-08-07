@@ -8,7 +8,55 @@ import pandas as pd
 import argparse
 from datetime import datetime
 import sys
+import numpy as np
 from options_pricing import OptionsPricingModels
+from risk_free_rates import get_risk_free_rates
+
+def format_cli_display(df, max_decimals=4):
+    """Format dataframe for CLI display with controlled decimal places"""
+    formatted_df = df.copy()
+    
+    # Define columns that should use specific formatting
+    percentage_columns = ['impliedVolatility', 'price_diff_pct']
+    currency_columns = ['strike', 'lastPrice', 'bid', 'ask', 'theoretical_price', 'price_diff']
+    decimal_columns = ['delta', 'gamma', 'theta', 'vega', 'rho', 'calculated_iv']
+    integer_columns = ['volume', 'openInterest']
+    
+    for col in formatted_df.columns:
+        if formatted_df[col].dtype in ['float64', 'float32']:
+            if col in percentage_columns:
+                # Format as percentage with 2 decimal places
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"{x*100:.2f}%" if pd.notna(x) else "N/A"
+                )
+            elif col in currency_columns:
+                # Format as currency with 2 decimal places
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
+                )
+            elif col in decimal_columns:
+                # Format with specified decimal places for Greeks
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"{x:.{max_decimals}f}" if pd.notna(x) else "N/A"
+                )
+            else:
+                # Format other numeric columns with max_decimals
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"{x:.{max_decimals}f}" if pd.notna(x) and abs(x) < 1e6 else (f"{x:.2e}" if pd.notna(x) else "N/A")
+                )
+        elif formatted_df[col].dtype in ['int64', 'int32']:
+            if col in integer_columns:
+                # Format volume and open interest with comma separators
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"{x:,}" if pd.notna(x) else "N/A"
+                )
+            else:
+                # Keep other integers as is
+                formatted_df[col] = formatted_df[col].apply(
+                    lambda x: f"{x}" if pd.notna(x) else "N/A"
+                )
+    
+    return formatted_df
 
 def fetch_options_data(symbol, expiration_date=None, enable_pricing=True, pricing_model="Black-Scholes", risk_free_rate=0.05):
     """Fetch and display options data with optional theoretical pricing"""
@@ -55,9 +103,11 @@ def fetch_options_data(symbol, expiration_date=None, enable_pricing=True, pricin
         
         if enable_pricing and pricer:
             calls_with_pricing = add_theoretical_pricing(calls, current_price, target_exp, 'call', pricer, pricing_model, risk_free_rate)
-            print(calls_with_pricing.to_string(index=False, float_format='%.4f'))
+            calls_formatted = format_cli_display(calls_with_pricing)
+            print(calls_formatted.to_string(index=False))
         else:
-            print(calls.to_string(index=False, float_format='%.4f'))
+            calls_formatted = format_cli_display(calls)
+            print(calls_formatted.to_string(index=False))
         
         # Process and display puts
         print(f"\n{'PUT OPTIONS':^120}")
@@ -66,9 +116,11 @@ def fetch_options_data(symbol, expiration_date=None, enable_pricing=True, pricin
         
         if enable_pricing and pricer:
             puts_with_pricing = add_theoretical_pricing(puts, current_price, target_exp, 'put', pricer, pricing_model, risk_free_rate)
-            print(puts_with_pricing.to_string(index=False, float_format='%.4f'))
+            puts_formatted = format_cli_display(puts_with_pricing)
+            print(puts_formatted.to_string(index=False))
         else:
-            print(puts.to_string(index=False, float_format='%.4f'))
+            puts_formatted = format_cli_display(puts)
+            print(puts_formatted.to_string(index=False))
         
         # Enhanced summary statistics
         print(f"\n{'MARKET SUMMARY':^70}")
@@ -231,11 +283,56 @@ def analyze_mispricing(calls, puts, current_price, expiration_date, pricer, pric
         print(f"Total Portfolio Gamma: {total_gamma:.4f}")
         print(f"Total Portfolio Theta: {total_theta:.4f} (daily decay)")
 
+def show_risk_free_rate_suggestions():
+    """Display current risk-free rate suggestions"""
+    print(f"\n{'CURRENT RISK-FREE RATES':^70}")
+    print('=' * 70)
+    
+    try:
+        rates_provider = get_risk_free_rates()
+        rates_provider.fetch_all_rates()
+        
+        # Get suggestions for USD (most common for equity options)
+        suggestions = rates_provider.get_rate_suggestions('USD')
+        
+        if suggestions:
+            print("💡 Live market rates (you can use these for more accurate pricing):")
+            print()
+            for i, suggestion in enumerate(suggestions, 1):
+                print(f"{i}. {suggestion['rate_percent']:.2f}% - {suggestion['description']}")
+                print(f"   Source: {suggestion['source']}")
+                print()
+        else:
+            print("⚠️  Could not fetch live rates. Using fallback rates:")
+            fallback = rates_provider.get_fallback_rates()
+            for currency, rates in fallback.items():
+                print(f"{currency} rates:")
+                for tenor, rate in rates.items():
+                    print(f"  {tenor}: {rate:.2f}%")
+                print()
+        
+        # Show rate info
+        rate_info = rates_provider.get_rate_info()
+        if rate_info['fred_api_configured']:
+            print("✅ FRED API configured for live US rates")
+        else:
+            print("⚠️  FRED API not configured - using fallback rates")
+            print("   Set FRED_API_KEY environment variable for live SOFR rates")
+        
+        print(f"Last updated: {rate_info['last_updated'] or 'Never'}")
+        
+    except Exception as e:
+        print(f"❌ Error fetching rates: {str(e)}")
+        print("Using default 5% rate")
+    
+    print('=' * 70)
+
 def main():
     parser = argparse.ArgumentParser(description='Enhanced CME Options Pricer with Theoretical Pricing')
-    parser.add_argument('symbol', help='Stock symbol (e.g., SPY, AAPL, TSLA)')
+    parser.add_argument('symbol', nargs='?', help='Stock symbol (e.g., SPY, AAPL, TSLA)')
     parser.add_argument('--expiration', '-e', help='Expiration date (YYYY-MM-DD format)')
     parser.add_argument('--list', '-l', action='store_true', help='List available expiration dates only')
+    parser.add_argument('--rates', action='store_true', help='Show current risk-free rate suggestions')
     parser.add_argument('--no-pricing', action='store_true', help='Disable theoretical pricing calculations')
     parser.add_argument('--model', '-m', choices=['Black-Scholes', 'Binomial', 'Monte Carlo'], 
                        default='Black-Scholes', help='Pricing model (default: Black-Scholes)')
@@ -243,6 +340,17 @@ def main():
                        help='Risk-free rate as percentage (default: 5.0%%)')
     
     args = parser.parse_args()
+    
+    # Handle rates command
+    if args.rates:
+        show_risk_free_rate_suggestions()
+        return
+    
+    # Require symbol for other operations
+    if not args.symbol:
+        parser.print_help()
+        print("\nError: symbol is required unless using --rates")
+        return
     
     symbol = args.symbol.upper()
     risk_free_rate = args.rate / 100  # Convert percentage to decimal
@@ -268,6 +376,10 @@ def main():
     print(f"Symbol: {symbol}")
     if enable_pricing:
         print(f"Theoretical Pricing: {pricing_model} model @ {args.rate}% risk-free rate")
+        
+        # Show brief rate suggestions unless user is using default rate
+        if args.rate == 5.0:  # Default rate
+            print("\n💡 Tip: Run 'python cli_pricer.py --rates' to see current market rates")
     else:
         print("Theoretical Pricing: Disabled")
     

@@ -29,6 +29,8 @@ A comprehensive Python application to fetch and analyze equity options data usin
   - Delta/Theta formatted to 4 decimal places for precision
 - **Popular Symbols**: Pre-configured with popular CME-related symbols (SPY, QQQ, etc.)
 - **Dual Interface**: Both web UI (Streamlit) and CLI options for flexibility
+- **Live Risk-Free Rates**: Access real-time SOFR, ESTR, SONIA, and EONIA rates from central bank APIs
+- **Rate Tenor Matching**: Automatic rate suggestions based on option expiration periods
 
 ## Installation
 
@@ -51,9 +53,16 @@ A comprehensive Python application to fetch and analyze equity options data usin
 
 3. **Set up environment variables** (optional):
    ```bash
-   copy .env.example .env
+   # Create .env file for API keys (optional)
+   echo ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key > .env
+   echo FRED_API_KEY=your_fred_api_key >> .env
    ```
-   Edit the `.env` file and add your Alpha Vantage API key if you want additional data sources.
+   
+   **API Key Requirements:**
+   - **Alpha Vantage**: Optional, for additional data sources (sign up at https://www.alphavantage.co/support/#api-key)
+   - **FRED API**: Optional but recommended for live US SOFR rates (free at https://fred.stlouisfed.org/docs/api/api_key.html)
+   - **No API keys needed**: ECB (ESTR) and Bank of England (SONIA) rates work without keys
+   - **Fallback rates**: Application works fully without any API keys using market estimates
 
 ## Usage
 
@@ -116,6 +125,32 @@ You can also enter any custom symbol that has options trading.
 - **Free Tier**: 25 requests per day
 - **API Key Required**: Sign up at https://www.alphavantage.co/support/#api-key
 - **Data Available**: Extended fundamental data
+
+### Risk-Free Rates Data Sources
+
+The application fetches live risk-free rates from multiple central bank APIs:
+
+#### **SOFR (US Rates) - FRED API**
+- **Source**: Federal Reserve Economic Data (FRED)
+- **API Key**: Optional but recommended for live data
+- **Signup**: Free at https://fred.stlouisfed.org/docs/api/api_key.html
+- **Fallback**: Market-based estimates when API key not provided
+
+#### **ESTR (European Rates) - ECB**
+- **Source**: European Central Bank Data Portal
+- **API Key**: Not required
+- **Access**: Publicly available real-time data
+
+#### **SONIA (UK Rates) - Bank of England**
+- **Source**: Bank of England Statistical Database
+- **API Key**: Not required
+- **Access**: Publicly available real-time data
+
+#### **EONIA (Legacy European Rates)**
+- **Source**: Derived from ESTR (ESTR - 5 basis points)
+- **API Key**: Not required
+
+**The application works immediately without any API keys** and provides live rates for European and UK markets, with fallback estimates for US rates.
 
 ## API Limitations
 
@@ -220,6 +255,14 @@ The application calculates all major Greeks:
 - **Better Data Formatting**: Consistent 4-decimal place formatting for Delta and Theta values across all tables
 - **Visual Feedback**: Added highlights and notifications for user interactions
 - **Index Hiding**: All tables now hide the index column for cleaner presentation
+- **Live Risk-Free Rates**: Real-time risk-free rate suggestions from FRED, ECB, and Bank of England APIs
+
+### Risk-Free Rates Integration
+- **Multi-Currency Support**: SOFR (USD), ESTR (EUR), SONIA (GBP), and EONIA (EUR) rates
+- **Live API Integration**: Real-time rates from Federal Reserve, ECB, and Bank of England
+- **Multiple Tenors**: Overnight, 1M, 3M, 6M, and 1Y rates for accurate option pricing
+- **Fallback Rates**: Automatic fallback to market-based estimates when APIs are unavailable
+- **Smart Suggestions**: Contextual rate recommendations based on option expiry periods
 
 ### Technical Improvements
 - **Robust Error Handling**: Better handling of NaN and string values in calculations
@@ -249,4 +292,3 @@ This project is for educational and personal use. Please respect the terms of se
 ## Contributing
 
 Feel free to submit issues and enhancement requests!
-"# CME_equity_options_pricer" 
