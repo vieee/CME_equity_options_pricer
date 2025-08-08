@@ -164,11 +164,25 @@ def calculate_theoretical_prices(options_df: pd.DataFrame, pricing_controls: dic
     enhanced_df['theoretical_price'] = theoretical_prices
     enhanced_df['price_diff'] = price_diffs
     enhanced_df['price_diff_pct'] = price_diff_pcts
-    enhanced_df['delta'] = delta_list
-    enhanced_df['gamma'] = gamma_list
-    enhanced_df['theta'] = theta_list
-    enhanced_df['vega'] = vega_list
-    enhanced_df['rho'] = rho_list
+    
+    # Add theoretical Greeks (separate from market Greeks if they exist)
+    enhanced_df['delta_theoretical'] = delta_list
+    enhanced_df['gamma_theoretical'] = gamma_list
+    enhanced_df['theta_theoretical'] = theta_list
+    enhanced_df['vega_theoretical'] = vega_list
+    enhanced_df['rho_theoretical'] = rho_list
+    
+    # If market Greeks don't exist, use theoretical as primary
+    if 'delta' not in enhanced_df.columns:
+        enhanced_df['delta'] = delta_list
+    if 'gamma' not in enhanced_df.columns:
+        enhanced_df['gamma'] = gamma_list
+    if 'theta' not in enhanced_df.columns:
+        enhanced_df['theta'] = theta_list
+    if 'vega' not in enhanced_df.columns:
+        enhanced_df['vega'] = vega_list
+    if 'rho' not in enhanced_df.columns:
+        enhanced_df['rho'] = rho_list
     
     return enhanced_df
 
@@ -237,10 +251,23 @@ def main():
         filtered_df = StreamlitComponents.render_options_filters(options_df, current_price)
         
         # Apply strike filter if selected
-        if 'selected_strike' in st.session_state and st.session_state['selected_strike'] is not None:
-            filtered_df = filtered_df[filtered_df['strike'] == st.session_state['selected_strike']]
+        if 'selected_strike_filter' in st.session_state and st.session_state['selected_strike_filter'] is not None:
+            selected_strike_value = st.session_state['selected_strike_filter']
+            filtered_df = filtered_df[filtered_df['strike'] == selected_strike_value]
+            st.info(f"🎯 Showing options for strike: ${selected_strike_value:.2f}")
         
         if len(filtered_df) > 0:
+            # Show active strike filter info
+            if 'selected_strike_filter' in st.session_state and st.session_state['selected_strike_filter'] is not None:
+                selected_strike_value = st.session_state['selected_strike_filter']
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.success(f"🎯 Filtered to strike: ${selected_strike_value:.2f} ({len(filtered_df)} options)")
+                with col2:
+                    if st.button("Clear Filter", key="clear_strike_filter"):
+                        st.session_state['selected_strike_filter'] = None
+                        st.rerun()
+            
             # Pricing analysis section
             st.markdown("---")
             pricing_controls = StreamlitComponents.render_pricing_controls(
@@ -277,6 +304,12 @@ def main():
             st.markdown("---")
             st.subheader("📊 Market vs Theoretical Prices")
             StreamlitComponents.render_options_table(enhanced_df)
+            
+            # Add comprehensive option analysis plots
+            st.markdown("---")
+            StreamlitComponents.render_option_analysis_plots(
+                enhanced_df, current_price, pricing_controls, st.session_state.rates_provider
+            )
         
         else:
             st.warning("No options match the current filters")

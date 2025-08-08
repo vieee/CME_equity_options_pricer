@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  cme-options-pricer:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cme-equity-options-pricer
+    ports:
+      - "8501:8501"
+    environment:
+      # Streamlit configuration
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      
+      # Application configuration
+      - PYTHONPATH=/app
+      - TZ=UTC
+      
+      # Optional: Add API keys as environment variables
+      # - ALPHA_VANTAGE_API_KEY=your_api_key_here
+      # - FRED_API_KEY=your_fred_api_key_here
+    
+    volumes:
+      # Optional: Mount data directory for persistence
+      - ./data:/app/data
+      # Optional: Mount logs directory
+      - ./logs:/app/logs
+    
+    restart: unless-stopped
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Add a reverse proxy for production
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: cme-options-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   depends_on:
+  #     - cme-options-pricer
+  #   restart: unless-stopped
+
+# Optional: Create named volumes for data persistence
+volumes:
+  app_data:
+  app_logs:
+
+# Optional: Create custom network
+networks:
+  cme_network:
+    driver: bridge

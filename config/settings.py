@@ -2,8 +2,16 @@
 Application configuration and settings
 """
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+
+# Load environment variables from .env if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    # If python-dotenv isn't installed, env vars from the OS will still be used
+    pass
 
 @dataclass
 class APIConfig:
@@ -34,10 +42,10 @@ class UIConfig:
 @dataclass
 class AppConfig:
     """Main application configuration"""
-    api: APIConfig = APIConfig()
-    pricing: PricingConfig = PricingConfig()
-    ui: UIConfig = UIConfig()
-    debug: bool = os.getenv('DEBUG', 'False').lower() == 'true'
+    api: APIConfig = field(default_factory=APIConfig)
+    pricing: PricingConfig = field(default_factory=PricingConfig)
+    ui: UIConfig = field(default_factory=UIConfig)
+    debug: bool = field(default_factory=lambda: os.getenv('DEBUG', 'False').lower() == 'true')
 
 # Global configuration instance
 config = AppConfig()

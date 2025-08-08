@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  cme-options-pricer:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cme-equity-options-pricer-prod
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      - PYTHONPATH=/app
+      - TZ=UTC
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+      - ./config:/app/config:ro
+    restart: unless-stopped
+    networks:
+      - cme_network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  nginx:
+    image: nginx:alpine
+    container_name: cme-options-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - cme-options-pricer
+    restart: unless-stopped
+    networks:
+      - cme_network
+
+  redis:
+    image: redis:alpine
+    container_name: cme-options-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - cme_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+
+  # Optional: PostgreSQL for data persistence
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: cme-options-postgres
+  #   environment:
+  #     - POSTGRES_DB=cme_options
+  #     - POSTGRES_USER=cme_user
+  #     - POSTGRES_PASSWORD=secure_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - cme_network
+
+volumes:
+  app_data:
+  app_logs:
+  redis_data:
+  # postgres_data:
+
+networks:
+  cme_network:
+    driver: bridge

@@ -1,60 +1,48 @@
 """
-Caching utilities for performance optimization
+Caching utilities for expensive operations
 """
+
 import streamlit as st
 import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Dict, Any, Optional, Callable, Union, Tuple
 import functools
-import hashlib
-import pickle
 
-class CacheManager:
-    """Manages caching for expensive operations"""
-    
-    @staticmethod
-    def get_cache_key(*args, **kwargs) -> str:
-        """Generate cache key from arguments"""
-        key_data = str(args) + str(sorted(kwargs.items()))
-        return hashlib.md5(key_data.encode()).hexdigest()
-    
-    @staticmethod
-    def streamlit_cache_data(ttl: int = 300):
-        """Streamlit cache decorator with TTL"""
-        return st.cache_data(ttl=ttl)
-    
-    @staticmethod
-    def memory_cache(ttl_seconds: int = 300):
-        """In-memory cache decorator"""
-        def decorator(func: Callable) -> Callable:
-            cache = {}
+# Simple in-memory cache for non-streamlit operations
+_cache = {}
+
+def simple_cache(ttl_seconds: int = 300):
+    """
+    Simple cache decorator for functions that returns cached results
+    for a specified time-to-live period
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Create cache key from function name and arguments
+            cache_key = f"{func.__name__}_{hash(str(args) + str(sorted(kwargs.items())))}"
+            current_time = datetime.now()
             
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                cache_key = CacheManager.get_cache_key(*args, **kwargs)
-                current_time = datetime.now()
-                
-                # Check if cached result exists and is not expired
-                if cache_key in cache:
-                    result, timestamp = cache[cache_key]
-                    if (current_time - timestamp).seconds < ttl_seconds:
-                        return result
-                
-                # Execute function and cache result
-                result = func(*args, **kwargs)
-                cache[cache_key] = (result, current_time)
-                
-                # Clean old entries (basic cleanup)
-                if len(cache) > 100:  # Limit cache size
-                    oldest_key = min(cache.keys(), 
-                                   key=lambda k: cache[k][1])
-                    del cache[oldest_key]
-                
-                return result
+            # Check if we have a cached result that's still valid
+            if cache_key in _cache:
+                result, timestamp = _cache[cache_key]
+                if (current_time - timestamp).seconds < ttl_seconds:
+                    return result
             
-            return wrapper
-        return decorator
+            # Execute function and cache result
+            result = func(*args, **kwargs)
+            _cache[cache_key] = (result, current_time)
+            
+            # Clean old entries (basic cleanup)
+            if len(_cache) > 100:  # Limit cache size
+                oldest_key = min(_cache.keys(), 
+                               key=lambda k: _cache[k][1])
+                del _cache[oldest_key]
+            
+            return result
+        
+        return wrapper
+    return decorator
 
 # Streamlit-specific cache decorators
 @st.cache_data(ttl=300)
@@ -64,7 +52,6 @@ def cached_stock_info(symbol: str) -> Optional[dict]:
         import yfinance as yf
         ticker = yf.Ticker(symbol)
         info = ticker.info
-<<<<<<< HEAD
         
         # Get current price with fallback logic
         current_price = info.get('currentPrice', 0)
@@ -102,14 +89,6 @@ def cached_stock_info(symbol: str) -> Optional[dict]:
             'trailingPE': info.get('trailingPE', 0),
             'sector': info.get('sector', 'Unknown'),
             'industry': info.get('industry', 'Unknown')
-=======
-        return {
-            'shortName': info.get('shortName', symbol),
-            'currentPrice': info.get('currentPrice', 0),
-            'marketCap': info.get('marketCap', 0),
-            'volume': info.get('volume', 0),
-            'previousClose': info.get('previousClose', 0)
->>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
         }
     except Exception:
         return None
@@ -120,7 +99,6 @@ def cached_options_data(symbol: str) -> tuple:
     try:
         import yfinance as yf
         ticker = yf.Ticker(symbol)
-<<<<<<< HEAD
         
         # Get options dates with better error handling
         try:
@@ -190,40 +168,6 @@ def cached_options_data(symbol: str) -> tuple:
         return None, None
     except Exception as e:
         print(f"Unexpected error in cached_options_data for {symbol}: {e}")
-=======
-        options_dates = ticker.options
-        if not options_dates:
-            return None, None
-        
-        current_price = ticker.info.get('currentPrice', 0)
-        if current_price == 0:
-            # Fallback to history
-            hist = ticker.history(period="1d")
-            if not hist.empty:
-                current_price = hist['Close'].iloc[-1]
-        
-        all_options = []
-        for date in options_dates[:3]:  # Limit to first 3 expiration dates for performance
-            try:
-                calls = ticker.option_chain(date).calls
-                puts = ticker.option_chain(date).puts
-                
-                calls['option_type'] = 'call'
-                calls['expiration'] = date
-                puts['option_type'] = 'put'
-                puts['expiration'] = date
-                
-                all_options.extend([calls, puts])
-            except Exception:
-                continue
-        
-        if all_options:
-            options_df = pd.concat(all_options, ignore_index=True)
-            return options_df, current_price
-        
-        return None, None
-    except Exception:
->>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
         return None, None
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
@@ -236,3 +180,17 @@ def cached_historical_data(symbol: str, period: str = "1y") -> Optional[pd.DataF
         return hist if not hist.empty else None
     except Exception:
         return None
+
+def clear_all_caches():
+    """Clear all caches"""
+    global _cache
+    _cache.clear()
+    st.cache_data.clear()
+    print("All caches cleared")
+
+def get_cache_stats():
+    """Get cache statistics"""
+    return {
+        'simple_cache_size': len(_cache),
+        'streamlit_cache_enabled': True
+    }
