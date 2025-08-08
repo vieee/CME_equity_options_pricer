@@ -13,4 +13,4 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 
 # Optional: For enhanced data sources
-alpha-vantage>=2.3.1  # Uncomment if using Alpha Vantage API
+# alpha-vantage>=2.3.1  # Uncomment if using Alpha Vantage API
