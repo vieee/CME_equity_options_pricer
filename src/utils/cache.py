@@ -64,6 +64,7 @@ def cached_stock_info(symbol: str) -> Optional[dict]:
         import yfinance as yf
         ticker = yf.Ticker(symbol)
         info = ticker.info
+<<<<<<< HEAD
         
         # Get current price with fallback logic
         current_price = info.get('currentPrice', 0)
@@ -101,6 +102,14 @@ def cached_stock_info(symbol: str) -> Optional[dict]:
             'trailingPE': info.get('trailingPE', 0),
             'sector': info.get('sector', 'Unknown'),
             'industry': info.get('industry', 'Unknown')
+=======
+        return {
+            'shortName': info.get('shortName', symbol),
+            'currentPrice': info.get('currentPrice', 0),
+            'marketCap': info.get('marketCap', 0),
+            'volume': info.get('volume', 0),
+            'previousClose': info.get('previousClose', 0)
+>>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
         }
     except Exception:
         return None
@@ -111,6 +120,7 @@ def cached_options_data(symbol: str) -> tuple:
     try:
         import yfinance as yf
         ticker = yf.Ticker(symbol)
+<<<<<<< HEAD
         
         # Get options dates with better error handling
         try:
@@ -180,6 +190,40 @@ def cached_options_data(symbol: str) -> tuple:
         return None, None
     except Exception as e:
         print(f"Unexpected error in cached_options_data for {symbol}: {e}")
+=======
+        options_dates = ticker.options
+        if not options_dates:
+            return None, None
+        
+        current_price = ticker.info.get('currentPrice', 0)
+        if current_price == 0:
+            # Fallback to history
+            hist = ticker.history(period="1d")
+            if not hist.empty:
+                current_price = hist['Close'].iloc[-1]
+        
+        all_options = []
+        for date in options_dates[:3]:  # Limit to first 3 expiration dates for performance
+            try:
+                calls = ticker.option_chain(date).calls
+                puts = ticker.option_chain(date).puts
+                
+                calls['option_type'] = 'call'
+                calls['expiration'] = date
+                puts['option_type'] = 'put'
+                puts['expiration'] = date
+                
+                all_options.extend([calls, puts])
+            except Exception:
+                continue
+        
+        if all_options:
+            options_df = pd.concat(all_options, ignore_index=True)
+            return options_df, current_price
+        
+        return None, None
+    except Exception:
+>>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
         return None, None
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes

@@ -23,7 +23,7 @@ A comprehensive, modular options pricing application with both Streamlit web int
 │   └── settings.py              # Application settings
 ├── tests/                        # Test suite
 │   └── test_pricing.py          # Pricing model tests
-├── app.py                       # Main Streamlit application
+├── main.py                       # Main Streamlit application
 ├── cli.py                        # Command-line interface
 └── requirements_new.txt          # Dependencies
 ```
@@ -80,7 +80,7 @@ A comprehensive, modular options pricing application with both Streamlit web int
 
 ### Web Application
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 Access at: `http://localhost:8501`
 

@@ -105,14 +105,19 @@ class StreamlitComponents:
             st.info("💡 Enter a symbol and the stock information will appear here")
             return
         
+<<<<<<< HEAD
         # Safely get the symbol with fallback
         symbol = stock_info.get('symbol', stock_info.get('shortName', 'Unknown'))
         st.subheader(f"📊 {symbol} - Stock Overview")
+=======
+        st.subheader(f"📊 {stock_info['symbol']} - Stock Overview")
+>>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
         
         # Create 4 columns for stock metrics
         metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
         
         with metric_col1:
+<<<<<<< HEAD
             # Determine if we're showing current or previous close price
             current_price = stock_info['currentPrice']
             previous_close = stock_info['previousClose']
@@ -127,6 +132,12 @@ class StreamlitComponents:
                 label=price_label, 
                 value=DataFormatter.format_currency(current_price),
                 help=price_help
+=======
+            st.metric(
+                label="💰 Current Price", 
+                value=DataFormatter.format_currency(stock_info['currentPrice']),
+                help="Real-time stock price"
+>>>>>>> 7d6a1c2ec5ab58b996606997bcbda132c2f1181a
             )
         
         with metric_col2:
