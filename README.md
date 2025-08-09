@@ -2342,6 +2342,6 @@ For commercial use cases requiring different licensing terms:
 
 ---
 
-**Built with ❤️ by the CME Options Pricer Community**
+**Built with ❤️**
 
 *"Making advanced options pricing theory accessible to everyone through open source software and collaborative development."*
