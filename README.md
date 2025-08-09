@@ -25,8 +25,21 @@ chmod +x docker-run.sh && ./docker-run.sh run
 
 **Manual Docker:**
 ```bash
+# Build the image
 docker build -t cme-equity-options-pricer .
-docker run -d -p 8501:8501 --name cme-equity-options-pricer cme-equity-options-pricer
+
+# Stop any existing containers on port 8501
+docker stop $(docker ps -q --filter "publish=8501") 2>/dev/null || true
+docker rm $(docker ps -aq --filter "publish=8501") 2>/dev/null || true
+
+# Option 1: Run with .env file (recommended - includes your FRED API key)
+docker run -d -p 8501:8501 --name cme-options-pricer --env-file .env cme-equity-options-pricer
+
+# Option 2: Run with explicit environment variables
+# docker run -d -p 8501:8501 --name cme-options-pricer -e FRED_API_KEY="your_fred_api_key" cme-equity-options-pricer
+
+# Alternative: Use different port if 8501 is busy
+# docker run -d -p 8502:8501 --name cme-options-pricer --env-file .env cme-equity-options-pricer
 ```
 
 **🌐 Access Application:** http://localhost:8501
@@ -191,7 +204,13 @@ cd CME_equity_options_pricer
 
 # 2. Build and run with Docker
 docker build -t cme-equity-options-pricer .
-docker run -p 8501:8501 cme-equity-options-pricer
+
+# Stop any existing containers first
+docker stop $(docker ps -q --filter "publish=8502") 2>/dev/null || true
+docker rm $(docker ps -aq --filter "publish=8502") 2>/dev/null || true
+
+# Run the container
+docker run -d -p 8502:8502 --name cme-options-pricer cme-equity-options-pricer
 
 # Or use management scripts:
 # Windows: .\docker-run.ps1 run

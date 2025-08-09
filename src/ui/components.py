@@ -1215,7 +1215,23 @@ class StreamlitComponents:
             text=hover_text,
             hovertemplate='%{text}<extra></extra>',
             name='Market Prices'
-        ), row=1, col=1 if show_residuals else None)
+        ), row=1, col=1) if show_residuals else fig.add_trace(go.Scatter(
+            x=plot_data['strike'],
+            y=plot_data['market_price'] if not normalize_prices else [1.0] * len(plot_data),
+            mode='markers',
+            marker=dict(
+                size=10,
+                color=color_values,
+                colorscale=colorscale,
+                colorbar=dict(title=colorbar_title),
+                showscale=True,
+                symbol='circle',
+                line=dict(width=2, color='white')
+            ),
+            text=hover_text,
+            hovertemplate='%{text}<extra></extra>',
+            name='Market Prices'
+        ))
         
         # Model predictions with enhanced tooltips
         for model in ['Black-Scholes', 'Binomial Tree', 'Monte Carlo']:
@@ -1244,7 +1260,17 @@ class StreamlitComponents:
                 text=model_hover,
                 hovertemplate='%{text}<extra></extra>',
                 opacity=0.8
-            ), row=1, col=1 if show_residuals else None)
+            ), row=1, col=1) if show_residuals else fig.add_trace(go.Scatter(
+                x=plot_data['strike'],
+                y=y_values,
+                mode='markers+lines',
+                name=model,
+                marker=dict(color=colors[model], size=6),
+                line=dict(width=2, color=colors[model], dash='dash'),
+                text=model_hover,
+                hovertemplate='%{text}<extra></extra>',
+                opacity=0.8
+            ))
         
         # Add confidence bands if requested
         if show_confidence and not show_residuals:
